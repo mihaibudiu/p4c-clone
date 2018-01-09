@@ -70,7 +70,6 @@ void EBPFProgram::emitC(CodeBuilder* builder, cstring header) {
         builder->appendFormat("#include \"%s\"", header.c_str());
     builder->newline();
 
-    builder->target->emitIncludes(builder);
     emitPreamble(builder);
     builder->append("REGISTER_START()\n");
     control->emitTableInstances(builder);
@@ -132,7 +131,10 @@ void EBPFProgram::emitH(CodeBuilder* builder, cstring) {
     emitGeneratedComment(builder);
     builder->appendLine("#ifndef _P4_GEN_HEADER_");
     builder->appendLine("#define _P4_GEN_HEADER_");
+
+    builder->appendLine("#if !USERSPACE_TESTING");
     builder->target->emitIncludes(builder);
+    builder->appendLine("#endif");
     builder->appendFormat("#define MAP_PATH \"%s\"", builder->target->sysMapPath().c_str());
     builder->newline();
     emitTypes(builder);
@@ -190,17 +192,6 @@ void EBPFProgram::emitPreamble(CodeBuilder* builder) {
     builder->blockEnd(false);
     builder->endOfStatement(true);
     builder->newline();
-    builder->appendLine("#define EBPF_MASK(t, w) ((((t)(1)) << (w)) - (t)1)");
-    builder->appendLine("#define BYTES(w) ((w) / 8)");
-    builder->appendLine(
-        "#define write_partial(a, s, v) do "
-        "{ u8 mask = EBPF_MASK(u8, s); "
-        "*((u8*)a) = ((*((u8*)a)) & ~mask) | (((v) >> (8 - (s))) & mask); "
-        "} while (0)");
-    builder->appendLine("#define write_byte(base, offset, v) do { "
-                        "*(u8*)((base) + (offset)) = (v); "
-                        "} while (0)");
-    builder->newline();
     builder->appendLine("void* memcpy(void* dest, const void* src, size_t num);");
     builder->newline();
 }
@@ -242,7 +233,7 @@ void EBPFProgram::emitLocalVariables(CodeBuilder* builder) {
 
 void EBPFProgram::emitHeaderInstances(CodeBuilder* builder) {
     builder->emitIndent();
-    parser->headerType->declare(builder, parser->headers->name.name, false);
+    parser->headerType->declare(builder, parser->headers->name.name);
 }
 
 void EBPFProgram::emitPipeline(CodeBuilder* builder) {

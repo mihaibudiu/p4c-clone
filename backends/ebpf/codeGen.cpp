@@ -38,7 +38,7 @@ bool CodeGenInspector::preorder(const IR::StringLiteral* expression) {
 
 bool CodeGenInspector::preorder(const IR::Declaration_Variable* decl) {
     auto type = EBPFTypeFactory::instance->create(decl->type);
-    type->declare(builder, decl->name.name, false);
+    type->declare(builder, decl->name.name);
     if (decl->initializer != nullptr) {
         builder->append(" = ");
         visit(decl->initializer);
@@ -175,15 +175,15 @@ bool CodeGenInspector::preorder(const IR::MethodCallExpression* expression) {
         builder->emitIndent();
         if (bim->name == IR::Type_Header::isValid) {
             visit(bim->appliedTo);
-            builder->append(".ebpf_valid");
+            builder->append(".valid");
             return false;
         } else if (bim->name == IR::Type_Header::setValid) {
             visit(bim->appliedTo);
-            builder->append(".ebpf_valid = true");
+            builder->append(".valid = true");
             return false;
         } else if (bim->name == IR::Type_Header::setInvalid) {
             visit(bim->appliedTo);
-            builder->append(".ebpf_valid = false");
+            builder->append(".valid = false");
             return false;
         }
     }

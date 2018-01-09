@@ -166,16 +166,23 @@ that it should be compilable to eBPF using clang and/or bcc (the BPF
 Compiler Collection -- https://github.com/iovisor/bcc).
 
 ```
-         --------------              -------
-P4 --->  | P4-to-eBPF | ---> C ----> | clang/BCC | --> eBPF
-         --------------              -------
+         --------------                   -------------
+P4 --->  | P4-to-EBPF | ---> file.c ----> | clang/BCC | --> EBPF
+         --------------      file.h       -------------
 ```
 
 The P4 program only describes the packet processing *data plane*, that
 runs in the Linux kernel.  The *control plane* must be separately
-implemented by the user. BCC tools simplify this task
-considerably, by generating C and/or Python APIs that expose the
+implemented by the user.  The BCC tools simplify this task considerably, by
+generating C and/or Python APIs that expose the
 dataplane/control-plane APIs.
+
+The generated header file contains declarations that are common to the
+data path and the control-plane implementation:
+
+* Declarations for all data-types that appear in tables (keys and actions)
+* A function `initialize_tables()` that should be executed by the control-plane
+  to establish the initial contents of the tables.
 
 ### Dependencies
 
@@ -210,8 +217,8 @@ $ sudo pip install pyroute2 ply scapy==2.4.0
 
 The current version of the P4 to eBPF compiler supports a relatively
 narrow subset of the P4 language, but still powerful enough to write
-very complex packet filters and simple packet forwarding engines.  We expect
-that the compiler's capabilities will improve gradually.
+complex packet filters.  We expect that the compiler's capabilities
+will improve gradually.
 
 Here are some limitations imposed on the P4 programs:
 
@@ -222,9 +229,11 @@ Here are some limitations imposed on the P4 programs:
 * arbitrary parsers can be compiled, but the BCC compiler will reject
   parsers that contain cycles
 
-* arithmetic on data wider than 32 bits is not supported
+* arithmetic on data that is not aligned to machine word sizes is not supported
 
-* eBPF does not offer support for ternary or LPM tables
+* no support for variable-width fields `varbit<>`
+
+* no support for ternary or LPM tables
 
 ### Translating P4 to C
 
@@ -238,18 +247,18 @@ is mapped to a corresponding C construct:
 
 P4 Construct | C Translation
 ----------|------------
-`header`  | `struct` type with an additional `valid` bit
-`struct`  | `struct`
+`header`  | packed byte array with an additional `valid` bit stored in network order
+`struct`  | `struct` with unpacked fields
+scalars   | C scalar values stored
 parser state  | code block
 state transition | `goto` statement
-`extract` | load/shift/mask data from packet buffer
 
 #### Translating match-action pipelines
 ##
 P4 Construct | C Translation
 ----------|------------
-table     | 2 eBPF tables: second one used just for the default action
-table key | `struct` type
+table     | 2 EBPF tables: second one used just for the default action
+table key | `struct` type; fields are stored in network order
 table `actions` block | tagged `union` with all possible actions
 `action` arguments | `struct`
 table `reads` | eBPF table access

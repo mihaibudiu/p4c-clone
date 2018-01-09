@@ -59,7 +59,7 @@ class EBPFProgram : public EBPFObject {
             options(options), program(program), toplevel(toplevel),
             refMap(refMap), typeMap(typeMap),
             parser(nullptr), control(nullptr), model(EBPFModel::instance) {
-        offsetVar = EBPFModel::reserved("packetOffsetInBits");
+        offsetVar = EBPFModel::reserved("packetOffsetInBytes");
         zeroKey = EBPFModel::reserved("zero");
         functionName = EBPFModel::reserved("filter");
         errorVar = EBPFModel::reserved("errorCode");

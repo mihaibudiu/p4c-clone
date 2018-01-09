@@ -111,7 +111,7 @@ void EBPFTable::emitKeyType(CodeBuilder* builder) {
             auto ebpfType = ::get(keyTypes, c);
             builder->emitIndent();
             cstring fieldName = ::get(keyFieldNames, c);
-            ebpfType->declare(builder, fieldName, false);
+            ebpfType->declare(builder, fieldName);
             builder->append("; /* ");
             c->expression->apply(commentGen);
             builder->append(" */");
@@ -137,7 +137,7 @@ void EBPFTable::emitActionArguments(CodeBuilder* builder,
     for (auto p : *action->parameters->getEnumerator()) {
         builder->emitIndent();
         auto type = EBPFTypeFactory::instance->create(p->type);
-        type->declare(builder, p->name.name, false);
+        type->declare(builder, p->name.name);
         builder->endOfStatement(true);
     }
 

@@ -28,8 +28,6 @@ class StateTranslationVisitor : public CodeGenInspector {
     P4::P4CoreLibrary& p4lib;
     const EBPFParserState* state;
 
-    void compileExtractField(const IR::Expression* expr, cstring name,
-                             unsigned alignment, EBPFType* type);
     void compileExtract(const IR::Expression* destination);
     void compileLookahead(const IR::Expression* destination);
 
@@ -163,112 +161,21 @@ bool StateTranslationVisitor::preorder(const IR::SelectCase* selectCase) {
 }
 
 void
-StateTranslationVisitor::compileExtractField(
-    const IR::Expression* expr, cstring field, unsigned alignment, EBPFType* type) {
-    unsigned widthToExtract = dynamic_cast<IHasWidth*>(type)->widthInBits();
-    auto program = state->parser->program;
-
-    if (widthToExtract <= 64) {
-        unsigned lastBitIndex = widthToExtract + alignment - 1;
-        unsigned lastWordIndex = lastBitIndex / 8;
-        unsigned wordsToRead = lastWordIndex + 1;
-        unsigned loadSize;
-
-        const char* helper = nullptr;
-        if (wordsToRead <= 1) {
-            helper = "load_byte";
-            loadSize = 8;
-        } else if (widthToExtract <= 16)  {
-            helper = "load_half";
-            loadSize = 16;
-        } else if (widthToExtract <= 32) {
-            helper = "load_word";
-            loadSize = 32;
-        } else {
-            if (widthToExtract > 64) BUG("Unexpected width %d", widthToExtract);
-            helper = "load_dword";
-            loadSize = 64;
-        }
-
-        unsigned shift = loadSize - alignment - widthToExtract;
-        builder->emitIndent();
-        visit(expr);
-        builder->appendFormat(".%s = (", field.c_str());
-        type->emit(builder);
-        builder->appendFormat(")((%s(%s, BYTES(%s))",
-                              helper,
-                              program->packetStartVar.c_str(),
-                              program->offsetVar.c_str());
-        if (shift != 0)
-            builder->appendFormat(" >> %d", shift);
-        builder->append(")");
-
-        if (widthToExtract != loadSize) {
-            builder->append(" & EBPF_MASK(");
-            type->emit(builder);
-            builder->appendFormat(", %d)", widthToExtract);
-        }
-
-        builder->append(")");
-        builder->endOfStatement(true);
-    } else {
-        // wide values; read all bytes one by one.
-        unsigned shift;
-        if (alignment == 0)
-            shift = 0;
-        else
-            shift = 8 - alignment;
-
-        const char* helper;
-        if (shift == 0)
-            helper = "load_byte";
-        else
-            helper = "load_half";
-        auto bt = EBPFTypeFactory::instance->create(IR::Type_Bits::get(8));
-        unsigned bytes = ROUNDUP(widthToExtract, 8);
-        for (unsigned i=0; i < bytes; i++) {
-            builder->emitIndent();
-            visit(expr);
-            builder->appendFormat(".%s[%d] = (", field.c_str(), i);
-            bt->emit(builder);
-            builder->appendFormat(")((%s(%s, BYTES(%s) + %d) >> %d)",
-                                  helper,
-                                  program->packetStartVar.c_str(),
-                                  program->offsetVar.c_str(), i, shift);
-
-            if ((i == bytes - 1) && (widthToExtract % 8 != 0)) {
-                builder->append(" & EBPF_MASK(");
-                bt->emit(builder);
-                builder->appendFormat(", %d)", widthToExtract % 8);
-            }
-
-            builder->append(")");
-            builder->endOfStatement(true);
-        }
-    }
-
-    builder->emitIndent();
-    builder->appendFormat("%s += %d", program->offsetVar.c_str(), widthToExtract);
-    builder->endOfStatement(true);
-    builder->newline();
-}
-
-void
-StateTranslationVisitor::compileExtract(const IR::Expression* destination) {
-    auto type = state->parser->typeMap->getType(destination);
-    auto ht = type->to<IR::Type_StructLike>();
+StateTranslationVisitor::compileExtract(const IR::Expression* expr) {
+    auto type = state->parser->typeMap->getType(expr);
+    auto ht = type->to<IR::Type_Header>();
     if (ht == nullptr) {
-        ::error("Cannot extract to a non-struct type %1%", destination);
+        ::error("Cannot extract to a non-struct type %1%", expr);
         return;
     }
 
     unsigned width = ht->width_bits();
     auto program = state->parser->program;
     builder->emitIndent();
-    builder->appendFormat("if (%s < %s + BYTES(%s + %d)) ",
+    builder->appendFormat("if (%s < %s + %s + %d) ",
                           program->packetEndVar.c_str(),
                           program->packetStartVar.c_str(),
-                          program->offsetVar.c_str(), width);
+                          program->offsetVar.c_str(), width / 8);
     builder->blockStart();
 
     builder->emitIndent();
@@ -281,25 +188,26 @@ StateTranslationVisitor::compileExtract(const IR::Expression* destination) {
     builder->newline();
     builder->blockEnd(true);
 
-    unsigned alignment = 0;
-    for (auto f : ht->fields) {
-        auto ftype = state->parser->typeMap->getType(f);
-        auto etype = EBPFTypeFactory::instance->create(ftype);
-        auto et = dynamic_cast<IHasWidth*>(etype);
-        if (et == nullptr) {
-            ::error("Only headers with fixed widths supported %1%", f);
-            return;
-        }
-        compileExtractField(destination, f->name, alignment, etype);
-        alignment += et->widthInBits();
-        alignment %= 8;
-    }
+    builder->emitIndent();
+    builder->appendFormat("memcpy(");
+    visit(expr);
+    builder->appendFormat(".data");
+    builder->appendFormat(", %s + %s, %d)",
+                          program->packetStartVar.c_str(),
+                          program->offsetVar.c_str(),
+                          width / 8);
+    builder->endOfStatement(true);
 
-    if (ht->is<IR::Type_Header>()) {
-        builder->emitIndent();
-        visit(destination);
-        builder->appendLine(".ebpf_valid = 1;");
-    }
+    builder->emitIndent();
+    visit(expr);
+    builder->appendLine(".valid = 1;");
+
+    builder->emitIndent();
+    builder->appendFormat("%s += %d",
+                          program->offsetVar.c_str(),
+                          width / 8);
+    builder->endOfStatement(true);
+    return;
 }
 
 bool StateTranslationVisitor::preorder(const IR::MethodCallExpression* expression) {
@@ -375,7 +283,7 @@ void EBPFParser::emitDeclaration(CodeBuilder* builder, const IR::Declaration* de
         auto vd = decl->to<IR::Declaration_Variable>();
         auto etype = EBPFTypeFactory::instance->create(vd->type);
         builder->emitIndent();
-        etype->declare(builder, vd->name, false);
+        etype->declare(builder, vd->name);
         builder->endOfStatement(true);
         BUG_CHECK(vd->initializer == nullptr,
                   "%1%: declarations with initializers not supported", decl);
