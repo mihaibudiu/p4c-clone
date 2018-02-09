@@ -211,6 +211,7 @@ StateTranslationVisitor::compileExtract(const IR::Expression* expr) {
 }
 
 bool StateTranslationVisitor::preorder(const IR::MethodCallExpression* expression) {
+    builder->emitIndent();
     builder->append("/* ");
     visit(expression->method);
     builder->append("(");

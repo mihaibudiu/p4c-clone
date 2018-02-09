@@ -169,12 +169,12 @@ void EBPFHeaderType::emit(CodeBuilder* builder) {
 
     builder->emitIndent();
     builder->appendFormat("char data[%d]", width / 8);
-    builder->endOfStatement();
+    builder->endOfStatement(true);
 
     builder->emitIndent();
     auto type = EBPFTypeFactory::instance->create(IR::Type_Boolean::get());
     type->declare(builder, "valid");
-    builder->endOfStatement();
+    builder->endOfStatement(true);
 
     builder->blockEnd(false);
     builder->endOfStatement(true);

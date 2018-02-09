@@ -86,6 +86,16 @@ void EBPFProgram::emitC(CodeBuilder* builder, cstring header) {
     parser->headerType->emitInitializer(builder);
     builder->endOfStatement(true);
 
+    /*
+    // HACK to force LLVM to put the headers on the stack.
+    // This should not be needed, but the llvm bpf back-end seems to be broken.
+    builder->emitIndent();
+    builder->append("printk(\"%p\", ");
+    builder->append(parser->headers->name);
+    builder->append(")");
+    builder->endOfStatement(true);
+    */
+
     emitLocalVariables(builder);
     builder->newline();
     builder->emitIndent();
@@ -132,9 +142,7 @@ void EBPFProgram::emitH(CodeBuilder* builder, cstring) {
     builder->appendLine("#ifndef _P4_GEN_HEADER_");
     builder->appendLine("#define _P4_GEN_HEADER_");
 
-    builder->appendLine("#if !USERSPACE_TESTING");
     builder->target->emitIncludes(builder);
-    builder->appendLine("#endif");
     builder->appendFormat("#define MAP_PATH \"%s\"", builder->target->sysMapPath().c_str());
     builder->newline();
     emitTypes(builder);

@@ -153,7 +153,7 @@ bool CodeGenInspector::preorder(const IR::Path* p) {
 }
 
 bool CodeGenInspector::preorder(const IR::BoolLiteral* b) {
-    builder->append(b->toString());
+    builder->append(b->value ? "1" : "0");
     return false;
 }
 
@@ -179,11 +179,11 @@ bool CodeGenInspector::preorder(const IR::MethodCallExpression* expression) {
             return false;
         } else if (bim->name == IR::Type_Header::setValid) {
             visit(bim->appliedTo);
-            builder->append(".valid = true");
+            builder->append(".valid = 1");
             return false;
         } else if (bim->name == IR::Type_Header::setInvalid) {
             visit(bim->appliedTo);
-            builder->append(".valid = false");
+            builder->append(".valid = 0");
             return false;
         }
     }
