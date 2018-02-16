@@ -101,6 +101,8 @@ class CodeGenInspector : public Inspector {
     bool preorder(const IR::ReturnStatement* s) override;
     bool preorder(const IR::ExitStatement* s) override;
     bool preorder(const IR::IfStatement* s) override;
+    bool preorder(const IR::PackHeaderField* expression) override;
+    bool preorder(const IR::UnpackHeaderField* expression) override;
 
     void widthCheck(const IR::Node* node) const;
 };

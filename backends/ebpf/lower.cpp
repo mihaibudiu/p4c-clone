@@ -115,4 +115,35 @@ const IR::Node* LowerExpressions::postorder(IR::Cast* expression) {
     return expression;
 }
 
+static size_t fieldOffsetInBits(const IR::Type_Header* type, cstring field) {
+    unsigned offset = 0;
+    for (auto f : type->fields) {
+        if (f->name == field)
+            return offset;
+        offset += f->type->width_bits();
+    }
+    BUG("Could not find %1% in %2%", field, type);
+}
+
+const IR::Node* LowerExpressions::postorder(IR::Member* expression) {
+    auto type = typeMap->getType(getOriginal(), true);
+    auto parentType = typeMap->getType(expression->expr, true);
+    auto ht = parentType->to<IR::Type_Header>();
+    if (ht != nullptr && !type->is<IR::Type_Method>()) {
+        unsigned offset = fieldOffsetInBits(ht, expression->member);
+        const IR::Node* result;
+        if (isWrite())
+            result = new IR::PackHeaderField(
+                expression->srcInfo, expression->expr, type->width_bits(),
+                offset, expression->member);
+        else
+            result = new IR::UnpackHeaderField(
+                expression->srcInfo, expression->expr, type->width_bits(),
+                offset, expression->member);
+        typeMap->setType(result, type);
+        return result;
+    }
+    return expression;
+}
+
 }  // namespace EBPF

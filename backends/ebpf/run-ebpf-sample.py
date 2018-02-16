@@ -165,6 +165,10 @@ def process_file(options, argv):
         else:
             result = SUCCESS
 
+    if not expected_error and result == SUCCESS:
+        args = ["gcc", "-I", ".", "-c", ppfile]
+        result = run_timeout(options, args, timeout, None)
+
     if options.cleanupTmp:
         if options.verbose:
             print("Removing", tmpdir)

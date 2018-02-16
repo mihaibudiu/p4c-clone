@@ -145,6 +145,20 @@ bool CodeGenInspector::preorder(const IR::PathExpression* expression) {
     return false;
 }
 
+bool CodeGenInspector::preorder(const IR::PackHeaderField* expression) {
+    builder->append("pack(");
+    visit(expression->expr);
+    builder->appendFormat(", %d, %d)", expression->offsetInBits, expression->widthInBits);
+    return false;
+}
+
+bool CodeGenInspector::preorder(const IR::UnpackHeaderField* expression) {
+    builder->append("unpack(");
+    visit(expression->expr);
+    builder->appendFormat(", %d, %d)", expression->offsetInBits, expression->widthInBits);
+    return false;
+}
+
 bool CodeGenInspector::preorder(const IR::Path* p) {
     if (p->absolute)
         ::error("%1%: Unexpected absolute path", p);

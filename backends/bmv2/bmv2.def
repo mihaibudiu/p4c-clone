@@ -1,6 +1,6 @@
 
-// Represent a signed integer value using just 'width' bits.
-// Special operation provided by BMv2
+/// Represent a signed integer value using just 'width' bits.
+/// Special operation provided by BMv2
 class IntMod : Operation_Unary {
       unsigned width;
       stringOp = "><";

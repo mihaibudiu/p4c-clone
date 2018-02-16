@@ -1,0 +1,26 @@
+
+/// Unpack a header field from an expression that evaluates to a header
+class UnpackHeaderField : Operation_Unary {
+      /// Width of field to unpack.
+      unsigned widthInBits;
+      /// Offset within header of this field.
+      unsigned offsetInBits;
+      stringOp = "RH ";
+      /// Name of field to unpack.
+      cstring fieldName;
+      precedence = DBPrint::Prec_Low;
+#nodbprint
+}
+
+/// Pack a header field into an expression that evaluates to a header.
+class PackHeaderField : Operation_Unary {
+      /// Width of field to pack.
+      unsigned widthInBits;
+      /// Offset within header of this field.
+      unsigned offsetInBits;
+      stringOp = "WH ";
+      /// Name of field to unpack.
+      cstring fieldName;
+      precedence = DBPrint::Prec_Low;
+#nodbprint
+}

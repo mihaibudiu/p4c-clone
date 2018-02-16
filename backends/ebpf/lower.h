@@ -26,7 +26,7 @@ namespace EBPF {
 /**
   This pass rewrites expressions which are not supported natively on EBPF.
 */
-class LowerExpressions : public Transform {
+class LowerExpressions : public Transform, P4WriteContext {
     P4::TypeMap* typeMap;
     // Cannot shift with a value larger than 5 bits
     const int maxShiftWidth = 5;
@@ -43,6 +43,7 @@ class LowerExpressions : public Transform {
     const IR::Node* postorder(IR::Slice* expression) override;
     const IR::Node* postorder(IR::Concat* expression) override;
     const IR::Node* postorder(IR::Cast* expression) override;
+    const IR::Node* postorder(IR::Member* expression) override;
 };
 
 class Lower : public PassManager {

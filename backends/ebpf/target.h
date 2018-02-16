@@ -55,6 +55,7 @@ class Target {
     virtual cstring forwardReturnCode() const = 0;
     virtual cstring dropReturnCode() const = 0;
     virtual cstring abortReturnCode() const = 0;
+    void emitCommonDefinitions(Util::SourceCodeBuilder* builder) const;
     // Path on /sys filesystem where maps are stored
     virtual cstring sysMapPath() const = 0;
 };
