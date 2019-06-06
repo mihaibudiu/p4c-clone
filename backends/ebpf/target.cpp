@@ -105,7 +105,6 @@ void BccTarget::emitIncludes(Util::SourceCodeBuilder* builder) const {
                     "#include <uapi/linux/ip.h>\n"
                     "#include <linux/skbuff.h>\n"
                     "#include <linux/netdevice.h>\n");
-    emitCommonDefinitions(builder);
 }
 
 void BccTarget::emitTableDecl(Util::SourceCodeBuilder* builder,
@@ -122,60 +121,6 @@ void BccTarget::emitMain(Util::SourceCodeBuilder* builder,
                                    cstring argName) const {
     builder->appendFormat("int %s(struct __sk_buff* %s)",
                           functionName.c_str(), argName.c_str());
-}
-
-//////////////////////////////////////////////////////////////
-
-void UserSpaceTarget::emitTableLookup(Util::SourceCodeBuilder* builder, cstring tblName,
-                                      cstring key, cstring value) const {
-    builder->appendFormat("%s = %s.lookup(&%s)",
-                          value, tblName, key);
-}
-
-void UserSpaceTarget::emitTableUpdate(Util::SourceCodeBuilder* builder, cstring tblName,
-                                      cstring key, cstring value) const {
-    builder->appendFormat("%s.update(&%s, &%s);",
-                          tblName, key, value);
-}
-
-void UserSpaceTarget::emitUserTableUpdate(Util::SourceCodeBuilder* builder, cstring tblName,
-                                          cstring key, cstring value) const {
-    builder->appendFormat("bpf_update_elem(%s, &%s, &%s, BPF_ANY);",
-                          tblName, key, value);
-}
-
-void UserSpaceTarget::emitIncludes(Util::SourceCodeBuilder* builder) const {
-    builder->append("#include <stdint.h>\n"
-                    "#include <stdlib.h>\n"
-                    );
-    builder->append("#define BPF_TABLE(kind, key, value, name, size)\n");
-    builder->append("typedef uint8_t u8;\n"
-                    "typedef uint16_t u16;\n"
-                    "typedef uint32_t u32;\n"
-                    "typedef uint64_t u64;\n");
-    builder->append("struct __sk_buff {\n"
-                    "   char* data;\n"
-                    "   unsigned len;\n"
-                    "};\n");
-    emitCommonDefinitions(builder);
-}
-
-void UserSpaceTarget::emitTableDecl(Util::SourceCodeBuilder* builder,
-                                    cstring tblName, bool isHash,
-                                    cstring keyType, cstring valueType, unsigned size) const {
-    cstring kind = isHash ? "hash" : "array";
-    builder->appendFormat("BPF_TABLE(\"%s\", %s, %s, %s, %d);",
-                      kind, keyType, valueType, tblName, size);
-    builder->newline();
-}
-
-void UserSpaceTarget::emitLicense(Util::SourceCodeBuilder*, cstring) const {}
-
-void UserSpaceTarget::emitMain(Util::SourceCodeBuilder* builder,
-                               cstring functionName,
-                               cstring argName) const {
-    builder->appendFormat("int %s(struct __sk_buff* %s)", functionName, argName);
->>>>>>> pack/unpack methods for header access
 }
 
 }  // namespace EBPF
