@@ -3566,12 +3566,14 @@ static void convertStructToTuple(const IR::Type_StructLike* structType, IR::Type
     for (auto field : structType->fields) {
         if (auto ft = field->type->to<IR::Type_Bits>()) {
             tuple->components.push_back(ft);
+        } else if (auto ft = field->type->to<IR::Type_Boolean>()) {
+            tuple->components.push_back(ft);
         } else if (auto ft = field->type->to<IR::Type_StructLike>()) {
             convertStructToTuple(ft, tuple);
         } else if (auto ft = field->type->to<IR::Type_InfInt>()) {
             tuple->components.push_back(ft);
         } else {
-            BUG("Unexpected type %1% for struct field %2%", field->type, field);
+            typeError("Unexpected type %1% for struct field %2%", field->type, field);
         }
     }
 }
@@ -3587,13 +3589,13 @@ TypeInference::matchCase(const IR::SelectExpression* select, const IR::Type_Base
     if (caseType->is<IR::Type_Dontcare>())
         return selectCase;
 
-    if (caseType->is<IR::Type_StructLike>()) {
+    if (auto st = caseType->to<IR::Type_StructLike>()) {
         auto tupleType = new IR::Type_Tuple();
-        convertStructToTuple(caseType->to<IR::Type_StructLike>(), tupleType);
+        convertStructToTuple(st, tupleType);
         caseType = tupleType;
     }
     const IR::Type* useSelType = selectType;
-    if (!caseType->is<IR::Type_BaseList>()) {
+    if (!selectCase->keyset->is<IR::ListExpression>()) {
         if (selectType->components.size() != 1) {
             typeError("Type mismatch %1% (%2%) vs %3% (%4%)",
                       select->select, selectType->toString(), selectCase, caseType->toString());
@@ -3601,9 +3603,10 @@ TypeInference::matchCase(const IR::SelectExpression* select, const IR::Type_Base
         }
         useSelType = selectType->components.at(0);
     }
-    auto tvs = unify(select, useSelType, caseType,
-                     "'match' case label type '%1%' does not match expected type '%2%'",
-                     { caseType, useSelType });
+    auto tvs = unify(
+        select, useSelType, caseType,
+        "'match' case label '%1%' has type '%2%' which does not match expected type '%3%'",
+        { selectCase->keyset, caseType, useSelType });
     if (tvs == nullptr)
         return nullptr;
     ConstantTypeSubstitution cts(tvs, refMap, typeMap, this);
